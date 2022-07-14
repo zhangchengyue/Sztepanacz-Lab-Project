@@ -1,0 +1,334 @@
+---
+title: "Spot_plasticity"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this document we will assess the hypotheses tested in the manuscript concerning our experimental populations and the differences in plasticity between native and invasive populations. Our predictions are:
+
+1. **The spot size is obviously correlated to wing size: they both will decrease as temperature increases. Among populations, we do not expect significant diffences in wing size nor spot size within the same temperature.** 
+
+2. **With the change in temperature we would expect the Sokol population to have a response more plastic than Sapporo population in wing size (based in Antoine et al. 2018): so wings will be larger for the American population at 16? and smaller at 28?. This pattern may therefore be reproduced for the absolute spot size** since it is highly correlated to wing size. 
+
+
+Our data consists in a data.frame consisting in an individual label, the genetic lineage (population) to which it belongs, the temperature at which it has been raised, its wing size, its spot size and the spot size/wing size ratio. Because wings from the same individual are not independent observations, we estimate the average for each trait:
+
+```{r eval=TRUE}
+
+spot.raw <- read.table(paste('/Users/ceferino_vg/Documents/Drosophila_suzukii/',
+                              'Spot_evolution/data/results_plasticity.txt',
+                              sep=''),
+                        header=T, sep=',')
+
+spot.data <- aggregate(Wing ~ IND*TEMP+POP, FUN = mean, data = spot.raw)
+
+spot.data$Spot <- aggregate(Spot ~ IND*TEMP+POP, FUN = mean, data = spot.raw)$Spot
+
+spot.data$Ratio <- aggregate(Ratio ~ IND*TEMP+POP, FUN = mean, data = spot.raw)$Ratio
+
+spot.data$TEMP <- factor(spot.data$TEMP)
+
+head(spot.data)
+
+```
+
+For future analyses, we import the libraries we are going to use and we write the function to estimate Cohen's d as an effect size measure:
+
+```{r message=FALSE}
+library(ggplot2)
+library(ggsignif)
+library(wesanderson)
+
+cohens.d <- function(pop1, pop2) {
+  d <- (mean(pop1)-mean(pop2))/
+    sqrt(((length(pop1)-1)*var(pop1)+(length(pop2)-1)*var(pop2))/(length(pop1)+length(pop2)-2))
+  
+  return(d)
+}
+```
+
+We take different indexes to study the different phenotypes within and among temperatures and populations.
+
+```{r message=FALSE}
+
+Paris_idx <- which(spot.data$POP=='PARIS')
+Sappo_idx <- which(spot.data$POP=='SAPPORO')
+Sokol_idx <- which(spot.data$POP=='SOKOL')
+temp16_idx <- which(spot.data$TEMP==16)
+temp22_idx <- which(spot.data$TEMP==22)
+temp28_idx <- which(spot.data$TEMP==28)
+
+```
+
+So we start by studying **1) the relationship between spot size, wing size and temperature**:
+
+```{r eval=TRUE}
+
+summary(aov(Spot ~ Wing+TEMP, data = spot.data))
+
+summary(lm(Spot ~ Wing, data = spot.data))$r.squared
+
+cohens.d(spot.data$Spot[temp16_idx], spot.data$Spot[temp22_idx])
+
+cohens.d(spot.data$Spot[temp22_idx], spot.data$Spot[temp28_idx])
+
+summary(lm(Spot ~ TEMP, data = spot.data))$r.squared
+
+```
+
+
+As expected, spot size is highly associated to the wing size and temperature. There's a high and obvious correlation between spot size, wing size and temperature (look at Fig 1), which does not make advisable to add both factors in a single model due to collinearity problems.
+
+Nonetheless, it is also interesting to look at the highly significant interaction between temperature and wing size, which reveals that the relationship between the spot and wing sizes depend on the temperature. We can re-test that relationship just for the interaction and visualise the relationship between spot and wing sizes for different temperatures:
+
+```{r echo=TRUE}
+
+summary(aov(Spot ~ Wing:TEMP, data = spot.data))
+
+summary(lm(Spot ~ Wing:TEMP, data = spot.data))$r.squared
+
+summary(lm(Spot ~ Wing, data = spot.data))
+
+summary(lm(Spot ~ Wing, data = spot.data[temp16_idx,]))$r.squared
+
+summary(lm(Spot ~ Wing, data = spot.data[temp22_idx,]))$r.squared
+
+summary(lm(Spot ~ Wing, data = spot.data[temp28_idx,]))$r.squared
+
+s16 <- summary(lm(Spot ~ Wing, data = spot.data[temp16_idx,]))$coefficients
+s22 <- summary(lm(Spot ~ Wing, data = spot.data[temp22_idx,]))$coefficients
+s28 <- summary(lm(Spot ~ Wing, data = spot.data[temp28_idx,]))$coefficients
+
+db <- (s22[2,1]-s16[2,1])
+sd <- sqrt(s22[2,2]^2+s16[2,2]^2)
+df <- (lm(Spot ~ Wing, data = spot.data[temp16_idx,])$df.residual+lm(Spot ~ Wing, 
+                                      data = spot.data[temp22_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+
+db <- (s28[2,1]-s22[2,1])
+sd <- sqrt(s28[2,2]^2+s22[2,2]^2)
+df <- (lm(Spot ~ Wing, data = spot.data[temp22_idx,])$df.residual+lm(Spot ~ Wing, 
+                                      data = spot.data[temp28_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+
+db <- (s28[2,1]-s16[2,1])
+sd <- sqrt(s28[2,2]^2+s16[2,2]^2)
+df <- (lm(Spot ~ Wing, data = spot.data[temp16_idx,])$df.residual+lm(Spot ~ Wing, 
+                                      data = spot.data[temp28_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+
+summary(lm(Spot ~ Wing, data = spot.data[temp16_idx,]))
+
+summary(lm(Spot ~ Wing, data = spot.data[temp22_idx,]))
+
+summary(lm(Spot ~ Wing, data = spot.data[temp28_idx,]))
+
+ggplot(data = spot.data, 
+       aes(x = Wing, y = Spot, color = TEMP)) + 
+  geom_point() + 
+  geom_smooth(method ='lm', se = FALSE) + 
+  scale_color_manual(values = wes_palette(n=3, name = "GrandBudapest1")) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+We can see that the smaller the temperature, the faster the spot size increases with wing size. In addition, we see that the intercept is higher for the populations at 22 and 16 degrees than for the 28 population. This means that we would predict that on average the individual with the smaller wing in the population of 16 or 22 degrees will still have a larger spot than an individual with the largest wing in the population of 28 degrees. For the two first populations this assumption does not hold: on average the smaller individual at 16? will have a smaller spot than the biggest individual at 22?.
+
+To test for **2) differences in plasticity between the native and invasive populations**, we run an ANOVA where the interaction temperature:population will tell us whether there are differences among populations in the effect of temperature on spot size:
+
+```{r eval=TRUE}
+
+summary(aov(Spot ~ TEMP*POP, data = spot.data))
+
+summary(lm(Spot ~ TEMP:POP, data = spot.data))$r.squared
+
+ggplot(data = spot.data, 
+       aes(x = TEMP, y = Spot, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data = spot.data, 
+       aes(x = TEMP, y = Spot)) + 
+  geom_boxplot() + geom_jitter(width = 0.2) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+
+So we don't find differences among geographic populations but there are differences in plasticity among them. That doesn't mean, however, that there are differences between invasive and native populations. We look at the R2 for each population independently:
+
+```{r eval=TRUE}
+
+summary(lm(Spot ~ TEMP, data = spot.data[Paris_idx,]))$r.squared
+
+summary(lm(Spot ~ TEMP, data = spot.data[Sappo_idx,]))$r.squared
+
+summary(lm(Spot ~ TEMP, data = spot.data[Sokol_idx,]))$r.squared
+
+ggplot(data=spot.data, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Spot, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank()) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+```
+
+We find the fastest decrease in spot size with wing size in the Sokol population, while in the Paris population it is the slowest. The Sapporo population stays in between. Therefore, we cannot say that there is a difference between native and invasive populations for the spot size.
+
+We can now repeat the same ANOVA for wing size and the relative spot size to check whether there are differences in plasticity among population for these two traits. We start with the wing size:
+
+```{r echo=TRUE}
+
+summary(aov(Wing ~ TEMP*POP, data = spot.data))
+
+cohens.d(spot.data$Wing[temp16_idx], spot.data$Wing[temp22_idx])
+
+cohens.d(spot.data$Wing[temp22_idx], spot.data$Wing[temp28_idx])
+
+summary(lm(Wing ~ TEMP, data = spot.data))$r.squared
+
+summary(lm(Wing ~ TEMP:POP, data = spot.data))$r.squared
+
+ggplot(data = spot.data, 
+       aes(x = TEMP, y = Wing, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data=spot.data, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Wing, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank()) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+```
+
+As expected, we find an effect of temperature on wing size. And here again we find different plasticities among populations. We look carefully at the R2 for each population to check for differences between native and invasive populations:
+
+```{r echo=TRUE}
+
+summary(lm(Wing ~ TEMP, data = spot.data[Paris_idx,]))$r.squared
+
+summary(lm(Wing ~ TEMP, data = spot.data[Sappo_idx,]))$r.squared
+
+summary(lm(Wing ~ TEMP, data = spot.data[Sokol_idx,]))$r.squared
+
+ggplot(data=spot.data, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Wing, color = POP)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE)
+
+```
+
+This time we did find a difference between the native and invasive populations, although it is minimal. Sokol population decreases its wing size faster with temperature than the other two populations while Sapporo is the slowest and Paris is in between.
+
+We now repeat the ANOVA for the relative spot size on all three different populations for the three different temperatures:
+
+```{r echo=TRUE}
+
+summary(aov(Ratio ~ TEMP*POP, data=spot.data))
+
+cohens.d(spot.data$Ratio[temp16_idx], spot.data$Ratio[temp22_idx])
+
+cohens.d(spot.data$Ratio[temp22_idx], spot.data$Ratio[temp28_idx])
+
+summary(lm(Ratio ~ TEMP, data=spot.data))$r.squared
+
+ggplot(data = spot.data, 
+       aes(x = TEMP, y = Ratio, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data=spot.data, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Ratio, color = POP)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank()) +
+    theme(axis.line.x = element_line(color="black", size = 0.5),
+          axis.line.y = element_line(color="black", size = 0.5))
+
+```
+
+The ANOVA testing for the effect of temperature, population and their interaction shows significant differences for temperature in the case of the relative spot size and for the residual spot size. Everything looks (and shows on the Cohen's d estimates) much more stable than for the absolute spot size and the wing size. We check that, indeed, the 22? temperature has overall larger relative and residual spot size than the other two.:
+
+```{r echo=TRUE}
+
+summary(aov(Ratio ~ TEMP*POP, data=spot.data[-temp22_idx,]))
+
+```
+
+So, one possibility could be to use from here on the residuals from the linear model _spot size ~  wing size_ to study the behaviour of the spot size independent to the wing size. We could see this as a similar proxy to the use of the ratio parameter since the latter will also show bigger values when the spot size is anormally bigger in relation to a given wing size.
+
+Indeed, we obtain similar results:
+
+```{r echo=TRUE}
+
+spot.ind <- aov(Spot ~ Wing, data=spot.data)
+
+spot.data$Res <- spot.ind$residuals
+
+summary(aov(Res ~ TEMP*POP, data=spot.data))
+
+summary(lm(Res ~ TEMP, data=spot.data))$r.squared
+
+summary(lm(Res ~ TEMP, data = spot.data[Paris_idx,]))$r.squared
+
+summary(lm(Res ~ TEMP, data = spot.data[Sappo_idx,]))$r.squared
+
+summary(lm(Res ~ TEMP, data = spot.data[Sokol_idx,]))$r.squared
+
+cohens.d(spot.data$Res[temp16_idx], spot.data$Res[temp22_idx])
+
+cohens.d(spot.data$Res[temp22_idx], spot.data$Res[temp28_idx])
+
+summary(aov(Res ~ TEMP*POP, data=spot.data[-temp22_idx,]))
+
+ggplot(data = spot.data, 
+       aes(x = TEMP, y = Res, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data=spot.data, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Res, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank()) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+summary(aov(Res ~ TEMP*POP, data=spot.data[-temp22_idx,]))
+
+```
+
+In summary:
+
+**1. The spot size, wing size and temperature are correlated. Temperature decreases both wing and spot sizes, although the spot progressively stops decreasing and therefore the correlation is lost.**
+
+**2. There isn't evidence about a difference in plasticity between native and invasive populations. This pattern is only followed for the absolute spot size but the differences are minimal.**

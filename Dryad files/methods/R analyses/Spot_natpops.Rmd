@@ -1,0 +1,481 @@
+---
+title: "Spot_natural_pops"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Once we have studied how the spot variation reacts plastically to temperature in lab experiments, we look at natural populations to check for similar patterns and therefore to check at what extend this plastic responses are sustained in nature.
+
+Our predictions are that warmer places would present patterns more similar to our lab populations raised at higher temperatures and therefore:
+
+1) Populations in warmer places will show smaller wings and spot sizes.
+
+2) the relative DA in the spot size will increase with temperature. 
+
+I start by importing the data and I change the Paris measures because the objective was different:
+
+```{r eval=TRUE}
+
+spot.nat.raw <- read.table(paste('/Users/ceferino_vg/Documents/Drosophila_suzukii/',
+                              'Spot_evolution/data/results_natpops.txt',
+                              sep=''),
+                        header=T, sep=',')
+
+spot.nat.raw$POP <- factor(spot.nat.raw$POP)
+
+spot.nat.raw[spot.nat.raw$POP=='PAR',]$Spot <- spot.nat.raw[spot.nat.raw$POP=='PAR',]$Spot*0.885
+spot.nat.raw[spot.nat.raw$POP=='PAR',]$Wing <- spot.nat.raw[spot.nat.raw$POP=='PAR',]$Wing*0.885
+spot.nat.raw[spot.nat.raw$POP=='PAR',]$Ratio <- 
+  spot.nat.raw[spot.nat.raw$POP=='PAR',]$Spot/spot.nat.raw[spot.nat.raw$POP=='PAR',]$Wing
+
+spot.nat <- aggregate(Wing ~ IND+POP, FUN = mean, data = spot.nat.raw)
+
+spot.nat$Spot <- aggregate(Spot ~ IND+POP, FUN = mean, data = spot.nat.raw)$Spot
+
+spot.nat$Ratio <- aggregate(Ratio ~ IND+POP, FUN = mean, data = spot.nat.raw)$Ratio
+
+spot.mod <- aov(Spot ~ Wing, data=spot.nat)
+
+spot.nat$Resid <- spot.mod$residuals
+
+head(spot.nat)
+
+```
+
+For future analyses, we import the libraries we are going to use and we write the function for Cohen's d effect size:
+
+```{r message=FALSE, warnings=FALSE}
+library(ggplot2)
+library(ggsignif)
+library(car)
+library(wesanderson)
+library(cvequality)
+library(openxlsx)
+
+cohens.d <- function(treat1, treat2) {
+  d <- (mean(treat1)-mean(treat2))/sqrt(((length(treat1)-1)*var(treat1)+(length(treat2)-1)*var(treat2))/(length(treat1)+length(treat2)-2))
+  
+  return(d)
+}
+```
+
+We first test whether the population, the wing size and the interaction among the two have an effect over spot size:
+
+```{r eval=TRUE}
+
+summary(aov(Spot ~ Wing*POP, data = spot.nat))
+
+pairwise.t.test(spot.nat$Spot,spot.nat$POP)
+
+summary(lm(Spot ~ POP, data = spot.nat))$r.squared
+
+summary(lm(Spot ~ Wing, data = spot.nat))$r.squared
+
+summary(lm(Spot ~ Wing:POP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = Wing, y = Spot, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data=spot.nat, 
+       aes(x = Wing, y = Spot)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE, color = 'red') + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+These results hold for the relative spot size:
+
+```{r eval=TRUE}
+
+summary(aov(Ratio ~ POP, data = spot.nat))
+
+summary(lm(Ratio ~ POP, data = spot.nat))$r.squared
+
+summary(lm(Wing ~ POP, data = spot.nat))$r.squared
+
+summary(aov(Ratio ~ Wing*POP, data = spot.nat))
+
+pairwise.t.test(spot.nat$Ratio,spot.nat$POP)
+
+summary(lm(Ratio ~ Wing, data = spot.nat))$r.squared
+
+summary(lm(Ratio ~ Wing:POP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = Wing, y = Ratio, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE)
+
+summary(aov(Resid ~ POP, data = spot.nat))
+
+summary(lm(Resid ~ POP, data = spot.nat))$r.squared
+
+```
+
+Finally, we check the population variation for the wing:
+
+```{r eval=TRUE}
+
+summary(aov(Wing ~ POP, data = spot.nat))
+
+summary(lm(Wing ~ POP, data = spot.nat))$r.squared
+
+```
+
+The temperature has any effect on the mean natural variation?
+
+```{r eval=TRUE}
+raw.temp <- read.xlsx('/Users/ceferino_vg/Documents/Drosophila_suzukii/Spot_evolution/data/temperatures.xlsx')
+
+temps <- raw.temp[match(spot.nat$POP, raw.temp[,1]),4]
+
+spot.nat$TEMP <- as.numeric(temps)
+
+summary(aov(Spot ~ TEMP, data = spot.nat))
+
+summary(lm(Spot ~ TEMP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = TEMP, y = Spot, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data=spot.nat, 
+       aes(x = TEMP, y = Spot, color = POP)) + 
+    geom_point(size = 3) + 
+    geom_smooth(method = 'lm', se = FALSE, color = 'black') +     
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+summary(aov(Wing ~ TEMP, data = spot.nat))
+
+summary(lm(Wing ~ TEMP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = TEMP, y = Wing, color = POP)) + 
+    geom_point(size = 5) + 
+    geom_smooth(method = 'lm', se = FALSE, color = 'black') +     
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+summary(aov(Ratio ~ TEMP, data = spot.nat))
+
+summary(lm(Ratio ~ TEMP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = TEMP, y = Ratio, color = POP)) + 
+    geom_point(size = 5) + 
+    geom_smooth(method = 'lm', se = FALSE, color = 'black') +     
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+summary(aov(Resid ~ TEMP, data = spot.nat))
+
+summary(lm(Resid ~ TEMP, data = spot.nat))$r.squared
+
+ggplot(data=spot.nat, 
+       aes(x = TEMP, y = Resid, color = POP)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE, color = 'black') +     
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+###VARIABILITY###
+
+We can explore variation in wing size and spot sizes:
+
+```{r eval=TRUE}
+
+ggplot(data = spot.nat,
+       aes(x = POP, y = Wing, fill = POP)) + 
+    geom_boxplot()
+
+ggplot(data = spot.nat,
+       aes(x = POP, y = Spot, fill = POP)) + 
+    geom_boxplot()
+
+```
+
+Intriguinly, there is an astonishing conservation of the spot size in relation to wing size:
+
+```{r eval=TRUE}
+
+ggplot(data = spot.nat,
+       aes(x = POP, y = Ratio, fill = POP)) + 
+    geom_boxplot()
+
+summary(aov(Resid ~ POP, data = spot.nat))
+
+pairwise.t.test(spot.nat$Resid, spot.nat$POP)
+
+ggplot(data = spot.nat,
+       aes(x = POP, y = Resid, fill = POP)) + 
+    geom_boxplot()
+
+```
+
+Asymmetry levels:
+
+We first create a matrix with both sides of just the complete individuals of the dataset:
+
+```{r eval=TRUE}
+
+non.symet <- c(0)
+
+for (i in 1:length(spot.nat.raw$IND)) {
+
+if (length(intersect(
+    which(as.character(spot.nat.raw$IND[i]) == as.character(spot.nat.raw$IND[-i])),
+ which(spot.nat.raw$POP[i] == spot.nat.raw$POP[-i]))) == 0) {
+  
+  non.symet <- c(non.symet,i)
+  }
+
+}
+
+nat.sym <- spot.nat.raw[-non.symet,]
+
+```
+
+And now we add residuals and temperatures:
+
+```{r eval=TRUE}
+
+spot.lm <- aov(Spot ~ Wing, data = nat.sym)
+
+nat.sym$Resid <- spot.lm$residuals
+
+natsym.temps <- raw.temp[match(nat.sym$POP, raw.temp[,1]),4] 
+
+nat.sym$TEMP <- as.numeric(natsym.temps)
+
+```
+
+```{r eval=TRUE}
+
+Bar_idx <- which(nat.sym$POP == 'Bar')
+BRE_idx <- which(nat.sym$POP == 'BRE')
+Gen_idx <- which(nat.sym$POP == 'Gen')
+Ita_idx <- which(nat.sym$POP == 'Ita')
+Lan_idx <- which(nat.sym$POP == 'Lan')
+Lia_idx <- which(nat.sym$POP == 'Lia')
+PAR_idx <- which(nat.sym$POP == 'PAR')
+Sap_idx <- which(nat.sym$POP == 'Sap')
+Shi_idx <- which(nat.sym$POP == 'Shi')
+Sok_idx <- which(nat.sym$POP == 'Sok')
+Tok_idx <- which(nat.sym$POP == 'Tok')
+Wat_idx <- which(nat.sym$POP == 'Wat')
+Wis_idx <- which(nat.sym$POP == 'Wis')
+
+Nats <- list(Bar_idx, BRE_idx, Gen_idx, Ita_idx, Lan_idx, Lia_idx,
+             PAR_idx, Sap_idx, Shi_idx, Sok_idx, Tok_idx, Wat_idx,
+             Wis_idx)
+
+```
+
+We start by looking at whether there is a systematic difference between wings (i. e. directional asymmetry):
+
+```{r}
+
+combin <- matrix(c(rep(4:7,length(Nats)), rep(1:length(Nats), each=4)),ncol=2)
+ 
+for (i in 1:52) {
+
+nat.pop <- nat.sym[Nats[[combin[i,2]]],]
+  
+model <- summary(aov(nat.pop[,combin[i,1]] ~ IND*SIDE, data = nat.pop))
+
+DA <- 1 - pf((model[[1]]['Mean Sq'][2,]/model[[1]]['Mean Sq'][3,]),1,model[[1]]['Df'][3,])
+
+cat(as.character(nat.pop[1,2]),' DA results for', 
+    colnames(nat.pop)[combin[i,1]], "\n")
+cat('F value = ', model[[1]]['Mean Sq'][2,]/model[[1]]['Mean Sq'][3,], '; df2 = ',
+    model[[1]]['Df'][3,], '; p-val =', DA, "\n")
+
+if (DA < 0.05) {
+  meanDA <- aggregate(Spot ~ SIDE, data=nat.pop, FUN = mean)
+  side_DA <- as.character(meanDA$SIDE[which(meanDA$Spot==max(meanDA$Spot))])
+  cat('The larger spot size is in the ',side_DA, ' wing.', "\n")
+}
+
+}
+
+```
+
+We now build the final symmetric-component dataset:
+
+```{r eval=TRUE}
+
+Sym.comp <- aggregate(Ratio ~ IND + POP,
+  data = nat.sym, FUN = mean
+)
+
+Sym.comp$Spot <- aggregate(Spot ~ IND + POP,
+  data = nat.sym, FUN = mean
+)[, 3]
+
+Sym.comp$Wing <- aggregate(Wing ~ IND + POP,
+  data = nat.sym, FUN = mean
+)[, 3]
+
+Sym.comp$Resid <- aggregate(Resid ~ IND + POP,
+  data = nat.sym, FUN = mean
+)[, 3]
+
+Sym.comp$TEMP <- aggregate(TEMP ~ IND + POP,
+  data = nat.sym, FUN = mean
+)[, 3]
+
+```
+
+As we have build a matrix where each row is an individual, we use it as a 'model' matrix for the asymmetric component matrix. Then, for each individual (for each name within the first column) we find the position of its two wings in the raw data, we identify right and left wings and then we estimate the asymmetric component as the difference of the right wing minus the left wing. Finally, we discard the NAs (those individuals that have just one wing within the raw dataset):
+
+```{r eval=TRUE}
+
+Asym.comp <- Sym.comp
+
+for (i in 1:nrow(Sym.comp)) {
+  indexes <- intersect(
+    which(nat.sym$IND == Sym.comp[i, 1]),
+    which(nat.sym$POP == Sym.comp[i, 2]))
+
+  if (nat.sym$SIDE[indexes[1]] == "D") {
+    ind_droite <- indexes[1]
+    ind_gauche <- indexes[2]
+  } else {
+    ind_gauche <- indexes[1]
+    ind_droite <- indexes[2]
+  }
+
+  Asym.comp[i, 3] <- nat.sym$Ratio[ind_droite] - nat.sym$Ratio[ind_gauche]
+  Asym.comp[i, 4] <- nat.sym$Spot[ind_droite] - nat.sym$Spot[ind_gauche]
+  Asym.comp[i, 5] <- nat.sym$Wing[ind_droite] - nat.sym$Wing[ind_gauche]
+  Asym.comp[i, 6] <- nat.sym$Resid[ind_droite] - nat.sym$Resid[ind_gauche]
+  Asym.comp[i, 7] <- Sym.comp[i,7]
+}
+
+```
+
+Now, we can start the analyses on the asymmetric component by looking at the factors influencing the asymmetric mean (i. e. DA):
+
+```{r eval=TRUE}
+
+summary(aov(Wing ~ TEMP*POP, data = Asym.comp))
+
+summary(aov(Spot ~ TEMP*POP, data = Asym.comp))
+
+pairwise.t.test(Asym.comp$Spot, Asym.comp$POP)
+
+summary(aov(Ratio ~ TEMP*POP, data = Asym.comp))
+
+summary(lm(Ratio ~ TEMP, data = Asym.comp))$r.squared
+
+pairwise.t.test(Asym.comp$Ratio, Asym.comp$POP)
+
+summary(aov(Resid ~ TEMP*POP, data = Asym.comp))
+
+summary(lm(Resid ~ TEMP, data = Asym.comp))$r.squared
+
+pairwise.t.test(Asym.comp$Resid, Asym.comp$POP)
+
+ggplot(data=Asym.comp, 
+       aes(x = TEMP, y = Spot, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data=Asym.comp, 
+       aes(x = TEMP, y = Ratio, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data=Asym.comp, 
+       aes(x = TEMP, y = Ratio, color = POP)) + 
+  geom_point(size = 5) + 
+  geom_smooth(method = 'lm', se = FALSE, color = 'black') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data=Asym.comp, 
+       aes(x = TEMP, y = Resid, color = POP)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, color = 'black') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+To study the effect of temperature and population on fluctuating asymmetry we use both Levene tests and tests taking into account the coefficient of variation:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Wing, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Spot, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Ratio, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Resid, group = Asym.comp$POP)
+
+```
+
+Is FA related to temperature?
+
+```{r eval=TRUE}
+
+vWings <- c()
+
+for (j in 1:length(levels(Asym.comp$POP))) {
+
+st.dev <- var(Asym.comp$Wing[Asym.comp$POP == levels(Asym.comp$POP)[j]])
+  
+vWings <- c(vWings, st.dev)
+
+}
+
+summary(aov(vWings ~ unique(Asym.comp$TEMP)))
+
+vSpot <- c()
+
+for (h in 1:length(levels(Asym.comp$POP))) {
+
+st.d <- var(Asym.comp$Spot[Asym.comp$POP == levels(Asym.comp$POP)[h]])
+  
+vSpot <- c(vSpot, st.d)
+
+}
+
+summary(aov(vSpot ~ unique(Asym.comp$TEMP)))
+
+vRatio <- c()
+
+for (h in 1:length(levels(Asym.comp$POP))) {
+
+st.d <- var(Asym.comp$Ratio[Asym.comp$POP == levels(Asym.comp$POP)[h]])
+  
+vRatio <- c(vRatio, st.d)
+
+}
+
+summary(aov(vRatio ~ unique(Asym.comp$TEMP)))
+
+vResid <- c()
+
+for (h in 1:length(levels(Asym.comp$POP))) {
+
+st.d <- var(Asym.comp$Resid[Asym.comp$POP == levels(Asym.comp$POP)[h]])
+  
+vResid <- c(vResid, st.d)
+
+}
+
+summary(aov(vResid ~ unique(Asym.comp$TEMP)))
+
+```

@@ -1,0 +1,441 @@
+---
+title: "Spot_asymmetry"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Following the predictions made for the plasiticity experiments, we would expect **variation at extreme temperatures are expected to be mainly driven by asymmetric variation, FA especially** as this is where developmental noise caused by temperature stress is expressed.
+
+We start by loading the data, including the estimation of the spot residuals, and the libraries we will need for the analyses:
+
+```{r eval=TRUE}
+
+spot.data <- read.table(paste('/Users/ceferino_vg/Documents/Drosophila_suzukii/',
+                              'Spot_evolution/data/results_plasticity.txt',
+                              sep=''),
+                        header=T, sep=',')
+
+spot.data$TEMP <- factor(spot.data$TEMP)
+
+head(spot.data)
+
+```
+
+```{r message=FALSE}
+library(ggplot2)
+library(ggsignif)
+library(car)
+library(wesanderson)
+library(cvequality)
+
+cohens.d <- function(pop1, pop2) {
+  d <- (mean(pop1)-mean(pop2))/
+    sqrt(((length(pop1)-1)*var(pop1)+(length(pop2)-1)*var(pop2))/(length(pop1)+length(pop2)-2))
+  
+  return(d)
+}
+```
+
+We first create a matrix with the just the complete individuals of the dataset and then we add the second measure of the whole dataset:
+
+```{r eval=TRUE}
+
+non.sym <- c(0)
+
+for (i in 1:length(spot.data$IND)) {
+
+if (length(intersect(intersect(
+    which(as.character(spot.data$IND[i]) == as.character(spot.data$IND[-i])),
+    which(spot.data$TEMP[i] == spot.data$TEMP[-i])
+), which(spot.data$POP[i] == spot.data$POP[-i]))) == 0) {
+  
+  non.sym <- c(non.sym,i)
+  }
+
+}
+
+spot.sym <- spot.data[-non.sym,]
+
+spot.ind <- aov(Spot ~ Wing, data = spot.sym)
+
+spot.sym$Res <- spot.ind$residuals
+
+error <- read.table(paste("/Users/ceferino_vg/Documents/Drosophila_suzukii/",
+                          "Spot_evolution/data/errors.txt",
+                          sep = ""
+), header = T, sep = ",")
+
+error$Res <- aov(Spot ~ Wing, data = error)$residuals
+
+spot.sym.error <- rbind(spot.sym, error)
+
+
+```
+
+We create the same categories to run the analyses:
+
+```{r message=FALSE}
+
+Paris_idx <- which(spot.sym.error$POP=='PARIS')
+Sappo_idx <- which(spot.sym.error$POP=='SAPPORO')
+Sokol_idx <- which(spot.sym.error$POP=='SOKOL')
+temp16_idx <- which(spot.sym.error$TEMP==16)
+temp22_idx <- which(spot.sym.error$TEMP==22)
+temp28_idx <- which(spot.sym.error$TEMP==28)
+
+Paris16 <- intersect(Paris_idx, temp16_idx)
+Paris22 <- intersect(Paris_idx, temp22_idx)
+Paris28 <- intersect(Paris_idx, temp28_idx)
+Sokol16 <- intersect(Sokol_idx, temp16_idx)
+Sokol22 <- intersect(Sokol_idx, temp22_idx)
+Sokol28 <- intersect(Sokol_idx, temp28_idx)
+Sapporo16 <- intersect(Sappo_idx, temp16_idx)
+Sapporo22 <- intersect(Sappo_idx, temp22_idx)
+Sapporo28 <- intersect(Sappo_idx, temp28_idx)
+
+Pops <- list(Paris16, Paris22, Paris28, Sapporo16, Sapporo22, Sapporo28,
+             Sokol16, Sokol22, Sokol28)
+
+```
+
+And here we go! First we test for FA in all nine different populations, storing the mean squares to manually estimate the significance of DA and individual variation in future analyses. We report the ratio between the Mean Sq of the IND:SIDE interaction and the Mean Sq of the Residuals and the p-value and effect size of the DA estimation. We also include which of the two wings has the largest spot size:
+
+```{r}
+
+combinations <- matrix(c(rep(5:8,9), rep(1:9, each=4)),ncol=2)
+
+for (i in 1:36) {
+
+Pop <- spot.sym.error[Pops[[combinations[i,2]]],]
+  
+FA <- summary(aov(Pop[,combinations[i,1]] ~ IND*SIDE, data = Pop))
+
+DA <- 1 - pf((FA[[1]]['Mean Sq'][2,]/FA[[1]]['Mean Sq'][3,]),1,FA[[1]]['Df'][3,])
+
+cat(as.character(Pop[1,2]),' ', as.character(Pop[1,3]) , ' ', 'FA results for', 
+    colnames(Pop)[combinations[i,1]], "\n")
+cat('Error (ratio) = ', FA[[1]]['Mean Sq'][3,]/FA[[1]]['Mean Sq'][4,], "\n")
+
+cat(as.character(Pop[1,2]),' ', as.character(Pop[1,3]) , ' ', 'DA results for', 
+    colnames(Pop)[combinations[i,1]], "\n")
+cat('F value = ', FA[[1]]['Mean Sq'][2,]/FA[[1]]['Mean Sq'][3,], '; df2 = ',
+    FA[[1]]['Df'][3,], '; p-val =', DA, "\n")
+
+if (DA < 0.05) {
+  meanDA <- aggregate(Spot ~ SIDE, data=Pop, FUN = mean)
+  side_DA <- as.character(meanDA$SIDE[which(meanDA$Spot==max(meanDA$Spot))])
+  cat('The larger spot size is in the ',side_DA, ' wing.', "\n")
+}
+
+}
+
+```
+
+
+We then decompose our data into a symmetric component (the individual average between wings) and the asymmetric component (the individual differences between wings). Computationally, it is easier to estimate the latter if we first build the matrix for the symmetric component, so we do that:
+
+```{r eval=TRUE}
+
+Sym.comp <- aggregate(Ratio ~ IND + TEMP + POP,
+  data = spot.sym, FUN = mean
+)
+
+Sym.comp$Spot <- aggregate(Spot ~ IND + TEMP + POP,
+  data = spot.sym, FUN = mean
+)[, 4]
+
+Sym.comp$Wing <- aggregate(Wing ~ IND + TEMP + POP,
+  data = spot.sym, FUN = mean
+)[, 4]
+
+Sym.comp$Res <- aggregate(Res ~ IND + TEMP + POP,
+  data = spot.sym, FUN = mean
+)[, 4]
+
+```
+
+As we have build a matrix where each row is an individual, we use it as a 'model' matrix for the asymmetric component matrix. Then, for each individual (for each name within the first column) we find the position of its two wings in the raw data, we identify right and left wings and then we estimate the asymmetric component as the difference of the right wing minus the left wing. Finally, we discard the NAs (those individuals that have just one wing within the raw dataset):
+
+```{r eval=TRUE}
+
+Asym.comp <- Sym.comp
+
+for (i in 1:nrow(Sym.comp)) {
+  indexes <- intersect(intersect(
+    which(spot.sym$IND == Sym.comp[i, 1]),
+    which(spot.sym$TEMP == Sym.comp[i, 2])
+  ), which(spot.sym$POP == Sym.comp[i, 3]))
+
+  if (spot.sym$SIDE[indexes[1]] == "D") {
+    ind_droite <- indexes[1]
+    ind_gauche <- indexes[2]
+  } else {
+    ind_gauche <- indexes[1]
+    ind_droite <- indexes[2]
+  }
+
+  Asym.comp[i, 4] <- spot.sym$Ratio[ind_droite] - spot.sym$Ratio[ind_gauche]
+  Asym.comp[i, 5] <- spot.sym$Spot[ind_droite] - spot.sym$Spot[ind_gauche]
+  Asym.comp[i, 6] <- spot.sym$Wing[ind_droite] - spot.sym$Wing[ind_gauche]
+  Asym.comp[i, 7] <- spot.sym$Res[ind_droite] - spot.sym$Res[ind_gauche]
+}
+
+```
+
+```{r message=FALSE}
+
+ParisAsym_idx <- which(Asym.comp$POP=='PARIS')
+SappoAsym_idx <- which(Asym.comp$POP=='SAPPORO')
+SokolAsym_idx <- which(Asym.comp$POP=='SOKOL')
+temp16Asym_idx <- which(Asym.comp$TEMP==16)
+temp22Asym_idx <- which(Asym.comp$TEMP==22)
+temp28Asym_idx <- which(Asym.comp$TEMP==28)
+
+```
+
+Now, we can start the analyses on the asymmetric component. We start by looking at whether there is a systematic effect on DA:
+
+```{r eval=TRUE}
+
+summary(aov(Spot ~ TEMP*POP, data = Asym.comp))
+
+cohens.d(Asym.comp$Spot[ParisAsym_idx],Asym.comp$Spot[SappoAsym_idx])
+
+cohens.d(Asym.comp$Spot[ParisAsym_idx],Asym.comp$Spot[SokolAsym_idx])
+
+cohens.d(Asym.comp$Spot[SokolAsym_idx],Asym.comp$Spot[SappoAsym_idx])
+
+summary(aov(Wing ~ TEMP*POP, data = Asym.comp))
+
+summary(aov(Ratio ~ TEMP*POP, data = Asym.comp))
+
+summary(lm(Ratio ~ TEMP, data = Asym.comp))$r.squared
+
+cohens.d(Asym.comp$Ratio[ParisAsym_idx],Asym.comp$Ratio[SappoAsym_idx])
+
+cohens.d(Asym.comp$Ratio[ParisAsym_idx],Asym.comp$Ratio[SokolAsym_idx])
+
+cohens.d(Asym.comp$Ratio[SokolAsym_idx],Asym.comp$Ratio[SappoAsym_idx])
+
+summary(aov(Ratio ~ TEMP:POP, data = Asym.comp))
+
+summary(lm(Ratio ~ TEMP:POP, data = Asym.comp))$r.squared
+
+summary(aov(Res ~ TEMP*POP, data = Asym.comp))
+
+summary(lm(Res ~ TEMP:POP, data = Asym.comp))$r.squared
+
+cohens.d(Asym.comp$Res[ParisAsym_idx],Asym.comp$Res[SappoAsym_idx])
+
+cohens.d(Asym.comp$Res[ParisAsym_idx],Asym.comp$Res[SokolAsym_idx])
+
+cohens.d(Asym.comp$Res[SokolAsym_idx],Asym.comp$Res[SappoAsym_idx])
+
+ggplot(data=Asym.comp, 
+       aes(x = POP, y = Spot, color = POP)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data=Asym.comp, 
+       aes(x = as.numeric(as.vector(TEMP)), y = Ratio, color = POP)) + 
+    geom_point() + 
+    geom_smooth(method = 'lm', se = FALSE)
+
+ggplot(data = Asym.comp, 
+       aes(x = TEMP, y = Ratio, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+ggplot(data = Asym.comp, 
+       aes(x = TEMP, y = Res, fill = POP)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.2)) + 
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+Now we compare the effect of temperature for invasive and native populations:
+
+```{r eval=TRUE}
+Sappotemp <- summary(lm(Ratio ~ TEMP, data = Asym.comp[SappoAsym_idx,]))$coefficients
+Sokoltemp <- summary(lm(Ratio ~ TEMP, data = Asym.comp[SokolAsym_idx,]))$coefficients
+Paristemp <- summary(lm(Ratio ~ TEMP, data = Asym.comp[ParisAsym_idx,]))$coefficients
+
+db <- (Sokoltemp[2,1]-Sappotemp[2,1])
+sd <- sqrt(Sokoltemp[2,2]^2+Sappotemp[2,2]^2)
+df <- (lm(Ratio ~ TEMP, data = Asym.comp[SappoAsym_idx,])$df.residual+lm(Ratio ~ TEMP, 
+                                        data = Asym.comp[SokolAsym_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+
+db <- (Paristemp[2,1]-Sappotemp[2,1])
+sd <- sqrt(Paristemp[2,2]^2+Sappotemp[2,2]^2)
+df <- (lm(Ratio ~ TEMP, data = Asym.comp[SappoAsym_idx,])$df.residual+lm(Ratio ~ TEMP, 
+                                        data = Asym.comp[ParisAsym_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+
+db <- (Paristemp[2,1]-Sokoltemp[2,1])
+sd <- sqrt(Paristemp[2,2]^2+Sokoltemp[2,2]^2)
+df <- (lm(Ratio ~ TEMP, data = Asym.comp[SokolAsym_idx,])$df.residual+lm(Ratio ~ TEMP, 
+                                        data = Asym.comp[ParisAsym_idx,])$df.residual)
+td <- db/sd
+td
+df
+2*pt(-abs(td), df)
+```
+
+To study the effect of temperature and population on fluctuating asymmetry we use Levene tests. We follow the same procedure than for the variation tests than for the symmetric component of variation:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Wing, group = Asym.comp$TEMP)
+
+leveneTest(Asym.comp$Spot, group = Asym.comp$TEMP)
+
+leveneTest(Asym.comp$Ratio, group = Asym.comp$TEMP)
+
+leveneTest(Asym.comp$Res, group = Asym.comp$TEMP)
+
+```
+
+We can then look at what temperature is different in the wing FA:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Wing[-temp16Asym_idx], group = Asym.comp$TEMP[-temp16Asym_idx])
+
+leveneTest(Asym.comp$Wing[-temp22Asym_idx], group = Asym.comp$TEMP[-temp22Asym_idx])
+
+leveneTest(Asym.comp$Wing[-temp28Asym_idx], group = Asym.comp$TEMP[-temp28Asym_idx])
+
+sd(Asym.comp$Wing[temp16Asym_idx])
+
+sd(Asym.comp$Wing[temp22Asym_idx])
+
+sd(Asym.comp$Wing[temp28Asym_idx])
+
+```
+
+Overall, FA is reduced for the wing at 28?. 
+
+We can then look at what temperature is different in the ratio FA:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Ratio[-temp16Asym_idx], group = Asym.comp$TEMP[-temp16Asym_idx])
+
+leveneTest(Asym.comp$Ratio[-temp22Asym_idx], group = Asym.comp$TEMP[-temp22Asym_idx])
+
+leveneTest(Asym.comp$Ratio[-temp28Asym_idx], group = Asym.comp$TEMP[-temp28Asym_idx])
+
+sd(Asym.comp$Ratio[temp16Asym_idx])
+
+sd(Asym.comp$Ratio[temp22Asym_idx])
+
+sd(Asym.comp$Ratio[temp28Asym_idx])
+
+```
+
+Overall, FA is increased for the ratio at 28?, probably as a consequence of the decreased variation in wing size.
+
+: Populations significantly different and the sense of their difference
+
+|        | 16?  | 22?  | 28?  |
+|:-------|:----:|:----:|:----:|
+|Spot    | ND   | ND   | ND   |
+|Wing    |+     |+     |-     |
+|Ratio   |-     |-     |+     |
+|Residual| ND   | ND   | ND   |
+
+#####Populations within and among temperatures#####
+
+Overall we did not find significant differences in FA among geographic populations:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Wing, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Spot, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Ratio, group = Asym.comp$POP)
+
+leveneTest(Asym.comp$Res, group = Asym.comp$POP)
+
+```
+
+Within temperatures, just the Wing size at 28? presents differences among geographic populations, where the Sokol populations showed a decreased FA:
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Wing[temp28Asym_idx], group = Asym.comp$POP[temp28Asym_idx])
+
+leveneTest(Asym.comp$Wing[c(intersect(temp28Asym_idx,ParisAsym_idx),
+                            intersect(temp28Asym_idx,SappoAsym_idx))], 
+           group = Asym.comp$POP[c(intersect(temp28Asym_idx,ParisAsym_idx),
+                                   intersect(temp28Asym_idx,SappoAsym_idx))])
+
+sd(Asym.comp$Wing[intersect(temp28Asym_idx,SokolAsym_idx)])
+
+sd(Asym.comp$Wing[intersect(temp28Asym_idx,ParisAsym_idx)])
+
+sd(Asym.comp$Wing[intersect(temp28Asym_idx,SappoAsym_idx)])
+
+```
+
+: 28? temperature
+
+|        | Sapporo  | Paris  | Sokol  |
+|--------|:--------:|:------:|:------:|
+|Spot    |    ND    |   ND   |   ND   |
+|Wing    |    +     |   +    |    -   |
+|Ratio   |    ND    |   ND   |   ND   |
+|Residual|    ND    |   ND   |   ND   |
+
+Within populations, just Sapporo shows differences in FA: for the relative spot size FA is reduced for the 16?.
+
+```{r eval=TRUE}
+
+leveneTest(Asym.comp$Ratio[SappoAsym_idx], group = Asym.comp$TEMP[SappoAsym_idx])
+
+leveneTest(Asym.comp$Ratio[c(intersect(temp28Asym_idx,SappoAsym_idx),
+                            intersect(temp22Asym_idx,SappoAsym_idx))], 
+           group = Asym.comp$TEMP[c(intersect(temp28Asym_idx,SappoAsym_idx),
+                                   intersect(temp22Asym_idx,SappoAsym_idx))])
+
+leveneTest(Asym.comp$Ratio[c(intersect(temp22Asym_idx,SappoAsym_idx),
+                            intersect(temp16Asym_idx,SappoAsym_idx))], 
+           group = Asym.comp$TEMP[c(intersect(temp22Asym_idx,SappoAsym_idx),
+                                   intersect(temp16Asym_idx,SappoAsym_idx))])
+
+leveneTest(Asym.comp$Ratio[c(intersect(temp28Asym_idx,SappoAsym_idx),
+                            intersect(temp16Asym_idx,SappoAsym_idx))], 
+           group = Asym.comp$TEMP[c(intersect(temp28Asym_idx,SappoAsym_idx),
+                                   intersect(temp16Asym_idx,SappoAsym_idx))])
+
+sd(Asym.comp$Ratio[intersect(temp16Asym_idx,SappoAsym_idx)])
+
+sd(Asym.comp$Ratio[intersect(temp22Asym_idx,SappoAsym_idx)])
+
+sd(Asym.comp$Ratio[intersect(temp28Asym_idx,SappoAsym_idx)])
+
+```
+
+: Sapporo population
+
+|        | 16?  | 22?  | 28?  |
+|--------|:----:|:----:|:----:|
+|Spot    |  ND  |  ND  |  ND  |
+|Wing    |  ND  |  ND  |  ND  |
+|Ratio   |  -   |  +   |   +  |
+|Residual|  ND  |  ND  |  ND  |

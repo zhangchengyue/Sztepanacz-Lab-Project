@@ -1,0 +1,396 @@
+---
+title: "Spot_variability"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this document we will assess the hypotheses tested in the manuscript concerning the differences in canalization between native and invasive populations. Our predictions are:
+
+1. **Extreme temperatures will increase the variation in each geographic population, as they will stress regular developmental pathways.** 
+
+2. **Invasive populations might show different variation patterns, as a product of their adaptation to new environments.**
+
+
+Our data consists in a data.frame consisting in an individual label, the genetic lineage (population) to which it belongs, the temperature at which it has been raised, its wing size, its spot size and the spot size/wing size ratio:
+
+```{r eval=TRUE}
+
+spot.raw <- read.table(paste('/Users/ceferino_vg/Documents/Drosophila_suzukii/',
+                              'Spot_evolution/data/results_plasticity.txt',
+                              sep=''),
+                        header=T, sep=',')
+
+spot.data <- aggregate(Wing ~ IND*TEMP+POP, FUN = mean, data = spot.raw)
+
+spot.data$Spot <- aggregate(Spot ~ IND*TEMP+POP, FUN = mean, data = spot.raw)$Spot
+
+spot.data$Ratio <- aggregate(Ratio ~ IND*TEMP+POP, FUN = mean, data = spot.raw)$Ratio
+
+spot.data$TEMP <- factor(spot.data$TEMP)
+
+spot.ind <- aov(Spot ~ Wing, data=spot.data) 
+
+spot.data$Res <- spot.ind$residuals
+
+head(spot.data)
+
+```
+
+For future analyses, we import the libraries we are going to use and we write the function to estimate Cohen's d as an effect size measure:
+
+```{r message=FALSE}
+library(ggplot2)
+library(ggsignif)
+library(wesanderson)
+library(cvequality)
+library(car)
+
+cohens.d <- function(pop1, pop2) {
+  d <- (mean(pop1)-mean(pop2))/
+    sqrt(((length(pop1)-1)*var(pop1)+(length(pop2)-1)*var(pop2))/(length(pop1)+length(pop2)-2))
+  
+  return(d)
+}
+```
+
+We take different indexes to study the different phenotypes within and among temperatures and populations.
+
+```{r message=FALSE}
+
+Paris_idx <- which(spot.data$POP=='PARIS')
+Sappo_idx <- which(spot.data$POP=='SAPPORO')
+Sokol_idx <- which(spot.data$POP=='SOKOL')
+temp16_idx <- which(spot.data$TEMP==16)
+temp22_idx <- which(spot.data$TEMP==22)
+temp28_idx <- which(spot.data$TEMP==28)
+
+```
+
+We start by exploring visualliy differences in variance among temperatures for each trait (with populations pooled):
+
+```{r eval=TRUE}
+
+ggplot(data = spot.data,
+aes(x = TEMP, y = Wing)) +
+geom_boxplot()
+
+ggplot(data = spot.data,
+aes(x = TEMP, y = Spot)) +
+geom_boxplot()
+
+ggplot(data = spot.data,
+aes(x = TEMP, y = Res)) +
+geom_boxplot()
+
+ggplot(data = spot.data,
+aes(x = TEMP, y = Ratio)) +
+geom_boxplot()
+
+```
+
+Although if we get a sense of what's going on, it wouldn't be fair to compare variation among temperatures as such since we know temperature substiantially decrease size. Compare variation for such different sizes isn't ideal. For that, we are going to compare coefficients of variation, standardized by the mean.
+
+So we are going to compare the coefficients of variation among temperatures (within population) for each phenotypic trait. Sorry if things get a bit messy.
+
+**So, for each geographic population we run a general MSLR test to check for differences in variation among temperatures for a trait. If the test comes up significant, we run three pairwise-tests to check between which temperatures there's a difference. We repeat this process for each phenotypic trait and then for each geographic population.**
+
+We start by looking at Sapporo population, where we didn't find variation differences among temperatures for any of the traits:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Wing[Sappo_idx],
+          y = as.character(spot.data$TEMP[Sappo_idx]), seed = 2344)
+
+sd(spot.data$Wing[intersect(temp16_idx,Sappo_idx)])/
+  mean(spot.data$Wing[intersect(temp16_idx,Sappo_idx)])
+sd(spot.data$Wing[intersect(temp22_idx,Sappo_idx)])/
+  mean(spot.data$Wing[intersect(temp22_idx,Sappo_idx)])
+sd(spot.data$Wing[intersect(temp28_idx,Sappo_idx)])/
+  mean(spot.data$Wing[intersect(temp28_idx,Sappo_idx)])
+
+mslr_test(nr = 1000,x= spot.data$Spot[Sappo_idx],
+          y= as.character(spot.data$TEMP[Sappo_idx]), seed = 982)
+
+sd(spot.data$Spot[intersect(temp16_idx,Sappo_idx)])/
+  mean(spot.data$Spot[intersect(temp16_idx,Sappo_idx)])
+sd(spot.data$Spot[intersect(temp22_idx,Sappo_idx)])/
+  mean(spot.data$Spot[intersect(temp22_idx,Sappo_idx)])
+sd(spot.data$Spot[intersect(temp28_idx,Sappo_idx)])/
+  mean(spot.data$Spot[intersect(temp28_idx,Sappo_idx)])
+
+leveneTest(spot.data$Res[Sappo_idx], group = spot.data$TEMP[Sappo_idx])
+
+sd(spot.data$Res[intersect(temp16_idx,Sappo_idx)])
+sd(spot.data$Res[intersect(temp22_idx,Sappo_idx)])
+sd(spot.data$Res[intersect(temp28_idx,Sappo_idx)])
+
+mslr_test(nr = 1000, x = spot.data$Ratio[Sappo_idx],
+          y = as.character(spot.data$TEMP[Sappo_idx]), seed = 3542)
+
+sd(spot.data$Ratio[intersect(temp16_idx,Sappo_idx)])/
+  mean(spot.data$Ratio[intersect(temp16_idx,Sappo_idx)])
+sd(spot.data$Ratio[intersect(temp22_idx,Sappo_idx)])/
+  mean(spot.data$Ratio[intersect(temp22_idx,Sappo_idx)])
+sd(spot.data$Ratio[intersect(temp28_idx,Sappo_idx)])/
+  mean(spot.data$Ratio[intersect(temp28_idx,Sappo_idx)])
+```
+
+Now we can look at one invasive population, Sokol population:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Wing[Sokol_idx], 
+          y = as.character(spot.data$TEMP[Sokol_idx]), seed = 4567)
+
+mslr_test(nr = 1000, x = spot.data$Spot[Sokol_idx], 
+          y = as.character(spot.data$TEMP[Sokol_idx]), seed = 13)
+
+leveneTest(spot.data$Res[Sokol_idx], group = spot.data$TEMP[Sokol_idx])
+
+mslr_test(nr = 1000, x = spot.data$Ratio[Sokol_idx], 
+          y = as.character(spot.data$TEMP[Sokol_idx]), seed = 876)
+
+```
+
+All traits but the residuals showed differences among temperatures. Let's start by looking at the wing:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Wing[c(intersect(temp22_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp22_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 98)
+
+mslr_test(nr = 1000, x = spot.data$Wing[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 463)
+
+mslr_test(nr = 1000, x = spot.data$Wing[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp22_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp22_idx,Sokol_idx))]), seed = 8789)
+
+sd(spot.data$Wing[intersect(temp16_idx,Sokol_idx)])/
+  mean(spot.data$Wing[intersect(temp16_idx,Sokol_idx)])
+sd(spot.data$Wing[intersect(temp22_idx,Sokol_idx)])/
+  mean(spot.data$Wing[intersect(temp22_idx,Sokol_idx)])
+sd(spot.data$Wing[intersect(temp28_idx,Sokol_idx)])/
+  mean(spot.data$Wing[intersect(temp28_idx,Sokol_idx)])
+```
+
+For the wing, extreme temperatures reduce variation but especially high temperature.
+
+Now we look at the absolute spot size: 
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp22_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp22_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 982)
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 654)
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp22_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp22_idx,Sokol_idx))]), seed = 1248)
+
+sd(spot.data$Spot[intersect(temp16_idx,Sokol_idx)])/
+  mean(spot.data$Spot[intersect(temp16_idx,Sokol_idx)])
+sd(spot.data$Spot[intersect(temp22_idx,Sokol_idx)])/
+  mean(spot.data$Spot[intersect(temp22_idx,Sokol_idx)])
+sd(spot.data$Spot[intersect(temp28_idx,Sokol_idx)])/
+  mean(spot.data$Spot[intersect(temp28_idx,Sokol_idx)])
+```
+
+We find that the absolute spot size is much more variable at high temperature.
+
+Now we look at the residual spot size:
+
+```{r warning=FALSE}
+
+leveneTest(spot.data$Res[c(intersect(temp22_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))], 
+          group = spot.data$TEMP[c(intersect(temp22_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))])
+
+leveneTest(spot.data$Res[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))], 
+          group = spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))])
+
+leveneTest(spot.data$Res[c(intersect(temp22_idx,Sokol_idx),
+                                          intersect(temp28_idx,Sokol_idx))], 
+          group = spot.data$TEMP[c(intersect(temp22_idx,Sokol_idx),
+                                            intersect(temp28_idx,Sokol_idx))])
+
+sd(spot.data$Res[intersect(temp16_idx,Sokol_idx)])
+sd(spot.data$Res[intersect(temp22_idx,Sokol_idx)])
+sd(spot.data$Res[intersect(temp28_idx,Sokol_idx)])
+```
+
+And finally, the ratio:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp22_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp22_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 674)
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp16_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp16_idx,Sokol_idx))]), seed = 74)
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp28_idx,Sokol_idx),
+                                          intersect(temp22_idx,Sokol_idx))],
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Sokol_idx),
+                                            intersect(temp22_idx,Sokol_idx))]), seed = 2874)
+
+sd(spot.data$Ratio[intersect(temp16_idx,Sokol_idx)])/
+  mean(spot.data$Ratio[intersect(temp16_idx,Sokol_idx)])
+sd(spot.data$Ratio[intersect(temp22_idx,Sokol_idx)])/
+  mean(spot.data$Ratio[intersect(temp22_idx,Sokol_idx)])
+sd(spot.data$Ratio[intersect(temp28_idx,Sokol_idx)])/
+  mean(spot.data$Ratio[intersect(temp28_idx,Sokol_idx)])
+```
+
+For the relative spot size, we find the same pattern than for the absolute spot size: at high temperature variation is much larger.
+
+Finally we check  for the Paris population, where we find differences for all traits but the wing:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Wing[Paris_idx], 
+          y = as.character(spot.data$TEMP[Paris_idx]), seed = 3)
+
+mslr_test(nr = 1000, x = spot.data$Spot[Paris_idx],
+          y= as.character(spot.data$TEMP[Paris_idx]), seed = 357)
+
+leveneTest(spot.data$Res[Paris_idx], group = spot.data$TEMP[Paris_idx])
+
+sd(spot.data$Res[intersect(temp28_idx,Paris_idx)])
+sd(spot.data$Res[intersect(temp22_idx,Paris_idx)])
+sd(spot.data$Res[intersect(temp16_idx,Paris_idx)])
+
+mslr_test(nr = 1000, x = spot.data$Ratio[Paris_idx], 
+          y = as.character(spot.data$TEMP[Paris_idx]), seed = 982)
+
+```
+
+We start by looking at the wing variation:
+
+```{r warning=FALSE}
+
+sd(spot.data$Wing[intersect(temp28_idx,Paris_idx)])/
+  mean(spot.data$Wing[intersect(temp28_idx,Paris_idx)])
+sd(spot.data$Wing[intersect(temp22_idx,Paris_idx)])/
+  mean(spot.data$Wing[intersect(temp22_idx,Paris_idx)])
+sd(spot.data$Wing[intersect(temp16_idx,Paris_idx)])/
+  mean(spot.data$Wing[intersect(temp16_idx,Paris_idx)])
+```
+
+Here again, as for Sokol, the wing is less variable at extreme temperatures.
+
+For the absolute spot size:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp22_idx,Paris_idx),
+                                          intersect(temp16_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp22_idx,Paris_idx),
+                                            intersect(temp16_idx,Paris_idx))]), seed = 7605)
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp28_idx,Paris_idx),
+                                          intersect(temp16_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Paris_idx),
+                                            intersect(temp16_idx,Paris_idx))]), seed = 234)
+
+mslr_test(nr = 1000, x = spot.data$Spot[c(intersect(temp28_idx,Paris_idx),
+                                          intersect(temp22_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Paris_idx),
+                                            intersect(temp22_idx,Paris_idx))]), seed = 4562)
+
+sd(spot.data$Spot[intersect(temp28_idx,Paris_idx)])/
+  mean(spot.data$Spot[intersect(temp28_idx,Paris_idx)])
+sd(spot.data$Spot[intersect(temp22_idx,Paris_idx)])/
+  mean(spot.data$Spot[intersect(temp22_idx,Paris_idx)])
+sd(spot.data$Spot[intersect(temp16_idx,Paris_idx)])/
+  mean(spot.data$Spot[intersect(temp16_idx,Paris_idx)])
+
+```
+
+Here also as for Sokol, the absolute spot size of the Paris population at 28º is much more variable.
+
+Finally, for the relative spot size:
+
+```{r warning=FALSE}
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp22_idx,Paris_idx),
+                                          intersect(temp16_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp22_idx,Paris_idx),
+                                            intersect(temp16_idx,Paris_idx))]), seed = 1204)
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp28_idx,Paris_idx),
+                                          intersect(temp16_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Paris_idx),
+                                            intersect(temp16_idx,Paris_idx))]), seed = 4501)
+
+mslr_test(nr = 1000, x = spot.data$Ratio[c(intersect(temp28_idx,Paris_idx),
+                                          intersect(temp22_idx,Paris_idx))], 
+          y = as.character(spot.data$TEMP[c(intersect(temp28_idx,Paris_idx),
+                                            intersect(temp22_idx,Paris_idx))]), seed = 652)
+
+sd(spot.data$Ratio[intersect(temp28_idx,Paris_idx)])/
+  mean(spot.data$Ratio[intersect(temp28_idx,Paris_idx)])
+sd(spot.data$Ratio[intersect(temp22_idx,Paris_idx)])/
+  mean(spot.data$Ratio[intersect(temp22_idx,Paris_idx)])
+sd(spot.data$Ratio[intersect(temp16_idx,Paris_idx)])/
+  mean(spot.data$Ratio[intersect(temp16_idx,Paris_idx)])
+```
+
+Finally, here also the Paris population is alike to Sokol population and the results are similar to the absolute spot size: the relative spot size is much larger at 28?.
+
+In summary:
+
+: Sapporo population
+
+|        |  16º | 22º  | 28º  |
+|--------|:----:|:----:|:----:|
+|Spot    |  ND  |  ND  |  ND  |
+|Wing    |  ND  |  ND  |  ND  |
+|Resid   |  ND  |  ND  |  ND  |
+|Ratio   |  ND  |  ND  |  ND  |
+
+
+: Sokol population
+
+|        | 16º  | 22º  | 28º  |
+|--------|:----:|:----:|:----:|
+|Spot    |  -   |  -   |  +   |
+|Wing    |  -   |   +  |  -   |
+|Resid   |  -   |  -   |  +   |
+|Ratio   |  -   |   -  |  +   |
+
+
+: Paris population
+
+|        | 16º  | 22º  | 28º  |
+|--------|:----:|:----:|:----:|
+|Spot    |  -   |  -   |  +   |
+|Wing    |  -   |  +   |  -   |
+|Resid   |  ND  |  ND  |  ND  |
+|Ratio   |  -   |  -   |  +   |
+
+While invasive populations only show larger variation in their spots at high temperature, the native population also showed increased variation at low temperature.
+
+

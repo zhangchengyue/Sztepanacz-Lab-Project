@@ -1,0 +1,14 @@
+Place	Eaxt place	Date	Temperature	Temp_place	Web
+Bar	NA	24/07/2014	24.1	NA	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+BRE	27°42'56''S,52°10'19''W	mai-14	16.8	Porto Alegre	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Gen	NA	sept-14	17.2	Rochester	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Ita	Trento	sept-14	7.3	Paganella	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Lan	NA	août-14	26.3	Beijing	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Lia	NA	04/08/2014	24.2	Shenyang	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Sap	NA	juil-14	22.5	NA	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Shi	23°39'30''N,102°32'52''E	31/05/2014	23.0	Mengzi	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Sok	Lat: 45,251758, Long: -123,049982	oct-14	15.6	Portland	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Tok	NA	juil-14	26.8	NA	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Wat	NA	oct-14	22.2	Fresno	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+Wis	NA	oct-16	12.1	Madison	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
+PAR	NA	oct-16	10.9	NA	NOAA: https://www.ncdc.noaa.gov/IPS/mcdw/mcdw.html
