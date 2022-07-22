@@ -1,13 +1,12 @@
 import os
+import sys
+
 import cv2
 import imutils
 import numpy as np
 from imutils import perspective
 from imutils import contours
 from scipy.spatial import distance as dist
-
-# Global variable: Path of the original image
-path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/0018A_R_22_SA.tif")
 
 
 def draw_and_save(new_path, image):
@@ -52,10 +51,17 @@ def midpoint(ptA, ptB):
     """
     return (ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5
 
+try:
+    # Path of the original image
+    pic_name = "018A_R_22_SA.tif"
+    path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/" + pic_name)
+    image = cv2.imread(path)
+    im = draw_and_save(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/line/" + pic_name[:-4]+ "_line.tif"), image)
 
-image = cv2.imread(path)
-im = draw_and_save(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/line/018_line.tif"), image)
 
+except cv2.error:
+    print("Failed to open the image. Check that the name is correct.")
+    sys.exit(1)
 ######################################
 # # Increase the contrast of the image
 # lab = cv2.cvtColor(im, cv2.COLOR_BGR2LAB)
@@ -70,13 +76,14 @@ im = draw_and_save(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/
 # im = enhanced_img
 ######################################
 
-
+# From original paper
 # We detect the wing contour by setting up a colour threshold
 
 gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
 dark = cv2.equalizeHist(gray)
 
+# Get rid of some noise in the image, and extract a binary image from grayscale
 ret, thresh = cv2.threshold(dark, 90, 255, cv2.THRESH_BINARY_INV)
 
 cont, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -106,6 +113,7 @@ spot_ith_larg, spot_cont_ind = contour_index(cnts, 1)
 # Right part of the wing
 cv2.drawContours(im, cnts, spot_cont_ind, (255, 0, 0), 6)
 
+# Sort the contours from top to bottom
 (cnts, _) = contours.sort_contours(cnts, 'top-to-bottom')
 pixelsPerMetric = None
 
