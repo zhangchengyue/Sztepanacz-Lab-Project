@@ -117,7 +117,8 @@ cv2.line(raw_wing, (int(upper_x), int(upper_y)), (int(lower_x), int(lower_y)),
 
 # ###########################
 # TODO: This part is for detecting the whole wing size. However, it is very dependent on the clearance of background.
-# TODO: If the background is dirty (eg. has fly blood on it), the code might also detect the blood shape...
+#  If the background is dirty (eg. has fly blood on it), the code might also detect the blood shape, making the result
+#  inaccurate.
 # # We detect the wing contour by setting up a colour threshold
 #
 # # Turn BGR image to grayscale
