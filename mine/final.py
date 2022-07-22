@@ -43,11 +43,12 @@ def contour_index(contours, ith_bigger):
 # path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\So05D_16.jpg')
 
 # This is the path of the picture for IOS system
+# TODO: Manually type in the name of the image for now. Can be automated in further development.
 name = "019A_R_22_SA.tif"
 path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/" + name)
 
 # Coordinators for landmarks
-# TODO: Try to use ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
+# TODO: Try to learn ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
 # upper_x = []
 # upper_y = []
 #
@@ -289,6 +290,7 @@ def compute_size(im, c, pixel):
 line_length, line_width, line_pixel = compute_size(im, cont_s[line_cont_ind], None)
 spot_length, spot_width, spot_pixel = compute_size(im, cont_s[spot_cont_ind], line_pixel)
 
+# For checking whether the line and the spots are detected properly
 print('Line size :\n' + 'Length: {:.2f} nm \n'.format(line_length) + 'Width: {:.2f} nm \n'.format(
     line_width) + '~~~~~~~~~~~~~~')
 print('Spot size :\n' + 'Length: {:.2f} nm \n'.format(spot_length) + 'Width: {:.2f} nm \n'.format(
