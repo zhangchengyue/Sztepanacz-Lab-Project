@@ -283,15 +283,15 @@ def compute_size(im, c, pixel, name):
     width = dA / pixel
     length = dB / pixel
     # draw the object sizes on the image
-    cv2.putText(orig, "{:.1f} nm".format(width),
+    cv2.putText(orig, "{:.1f} um".format(width),
                 (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.65, (255, 255, 255), 2)
-    cv2.putText(orig, "{:.1f} nm".format(length),
+    cv2.putText(orig, "{:.1f} um".format(length),
                 (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.65, (255, 255, 255), 2)
-    cv2.imshow("Image", orig)
-    print('{} size :\n'.format(name) + 'Length: {:.2f} nm \n'.format(length) +
-          'Width: {:.2f} nm \n'.format(width) + '~~~~~~~~~~~~~~')
+    cv2.imshow("{}".format(name), orig)
+    print('{} size :\n'.format(name) + 'Length: {:.2f} um \n'.format(length) +
+          'Width: {:.2f} um \n'.format(width) + '~~~~~~~~~~~~~~')
     cv2.waitKey(0)
     return (length, width, pixel)
 
