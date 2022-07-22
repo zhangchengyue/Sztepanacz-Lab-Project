@@ -45,6 +45,7 @@ def contour_index(contours, ith_bigger):
 # This is the path of the picture for IOS system
 # TODO: Manually type in the name of the image for now. Can be automated in further development.
 name = "019A_R_22_SA.tif"
+print("Processing image: {} \n".format(name))
 path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/" + name)
 
 # Coordinators for landmarks
@@ -213,7 +214,11 @@ cont_s, _ = cv2.findContours(threshold, cv2.RETR_LIST,
 spot_ith_larg, spot_cont_ind = contour_index(cont_s, 1)
 cv2.drawContours(im, cont_s, spot_cont_ind, (0, 255, 0), 6)
 
+
 # The third-largest contour would be the 500nm line
+# TODO: Make sure that the background is clean, otherwise can't detect the complete line.
+#  Successful example: 018A_R_22_SA.tif
+#  Failed example: 184A_R_22_SA.tif
 line_ith_larg, line_cont_ind = contour_index(cont_s, 2)
 cv2.drawContours(im, cont_s, line_cont_ind, (0, 255, 0), 6)
 
@@ -223,12 +228,13 @@ cv2.drawContours(im, cont_s, line_cont_ind, (0, 255, 0), 6)
 # cv2.waitKey(0)
 
 
-def compute_size(im, c, pixel):
+def compute_size(im, c, pixel, name):
     """
     Compute the size of the object
     :param im: Input image
     :param c: Contour of the object
     :param pixel: Pixels per Metric used as reference
+    :param name: Name of this object
     :return: A tuple (height, width, pixels per metric)
     """
     orig = im.copy()
@@ -283,18 +289,14 @@ def compute_size(im, c, pixel):
                 (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.65, (255, 255, 255), 2)
     cv2.imshow("Image", orig)
+    print('{} size :\n'.format(name) + 'Length: {:.2f} nm \n'.format(length) +
+          'Width: {:.2f} nm \n'.format(width) + '~~~~~~~~~~~~~~')
     cv2.waitKey(0)
     return (length, width, pixel)
 
 
-line_length, line_width, line_pixel = compute_size(im, cont_s[line_cont_ind], None)
-spot_length, spot_width, spot_pixel = compute_size(im, cont_s[spot_cont_ind], line_pixel)
-
-# For checking whether the line and the spots are detected properly
-print('Line size :\n' + 'Length: {:.2f} nm \n'.format(line_length) + 'Width: {:.2f} nm \n'.format(
-    line_width) + '~~~~~~~~~~~~~~')
-print('Spot size :\n' + 'Length: {:.2f} nm \n'.format(spot_length) + 'Width: {:.2f} nm \n'.format(
-    spot_width) + '~~~~~~~~~~~~~~')
+line_length, line_width, line_pixel = compute_size(im, cont_s[line_cont_ind], None, "Reference line")
+spot_length, spot_width, spot_pixel = compute_size(im, cont_s[spot_cont_ind], line_pixel, "Spot")
 
 # Writes the information to txt file
 try:
