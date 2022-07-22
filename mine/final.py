@@ -302,7 +302,7 @@ spot_length, spot_width, spot_pixel = compute_size(im, cont_s[spot_cont_ind], li
 # Writes the information to txt file
 try:
     # Try open the file if it already exists
-    f = open("results_for_testing.txt", 'w')
+    f = open("results_for_testing.txt", 'a')
 except FileNotFoundError:
     # If not exists, create a new file
     f = open("results_for_testing.txt", 'w')
