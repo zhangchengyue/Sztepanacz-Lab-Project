@@ -5,23 +5,8 @@ import cv2
 import imutils
 import numpy as np
 from imutils import perspective
-from imutils import contours
 from scipy.spatial import distance as dist
 
-#
-# def draw_and_save(new_path, image):
-#     """
-#     A function that draws a line in the image, save it, and then re-read the image for further process.
-#     The line can be used as a size reference of 500 nm in length.
-#
-#     :param new_path: The new path where the new image is saved.
-#     :param image: The original image that needs to draw a line on.
-#     :return: New image with a line.
-#     """
-#     cv2.line(image, (204, 144), (712, 144), (0, 0, 0), thickness=12)
-#     cv2.imwrite(new_path, image)
-#     result = cv2.imread(new_path)
-#     return result
 
 def midpoint(ptA, ptB):
     """
@@ -29,6 +14,7 @@ def midpoint(ptA, ptB):
     Returns the coordinator of the midpoint.
     """
     return (ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5
+
 
 def contour_index(contours, ith_bigger):
     """Finds the ith biggest contour among a set of contours.
@@ -57,10 +43,11 @@ def contour_index(contours, ith_bigger):
 # path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\So05D_16.jpg')
 
 # This is the path of the picture for IOS system
-path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/018A_R_22_SA.tif")
-
+name = "019A_R_22_SA.tif"
+path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/" + name)
 
 # Coordinators for landmarks
+# TODO: Try to use ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
 # upper_x = []
 # upper_y = []
 #
@@ -72,8 +59,9 @@ upper_y = '400'
 
 lower_x = '2200'
 lower_y = '800'
+
 # Read landmarks from file.
-# TODO: Try to use ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
+
 # with open(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/landmarks_plasticity.txt"), 'r') as f:
 #     for line in f.readlines():
 #         l = line.strip().split(',')
@@ -126,6 +114,8 @@ cv2.line(raw_wing, (int(upper_x), int(upper_y)), (int(lower_x), int(lower_y)),
 # cv2.waitKey(0)
 
 # ###########################
+# TODO: This part is for detecting the whole wing size. However, it is very dependent on the clearance of background.
+# TODO: If the background is dirty (eg. has fly blood on it), the code might also detect the blood shape...
 # # We detect the wing contour by setting up a colour threshold
 #
 # # Turn BGR image to grayscale
@@ -171,16 +161,15 @@ cv2.line(raw_wing, (int(upper_x), int(upper_y)), (int(lower_x), int(lower_y)),
 # The following part is processing the image to make sure only the 500 nm line and the spot are detected. #
 
 # Coordination can be replaced by landmarks.
-# TODO: Learn ImageJ!!
+# TODO: Learn ImageJ to get landmarks!!
 u_x = '1000'
 u_y = '400'
 l_x = '1000'
+
 # l_y can be fixed to height - 200.
 l_y = height - 200
 
-# pts = np.array([[upper_x, upper_y], [lower_x, lower_y], [width, height], [width, 0]])
 pts2 = np.array([[u_x, 0], [l_x, l_y], [width, l_y], [width, 0]])
-
 
 # Draw contours of the shape bounded by new landmarks
 _ = cv2.drawContours(mask, np.int32([pts2]), 0, 255, -1)
@@ -205,10 +194,6 @@ cv2.line(raw_wing2, (int(u_x), 0), (int(l_x), int(l_y)),
 # cv2.waitKey(0)
 
 
-
-
-
-
 # Then the spot contour is estimated
 blurred = cv2.pyrMeanShiftFiltering(raw_wing2, 31, 91)  # dilate & erode doesn't work well
 
@@ -221,7 +206,7 @@ retval, threshold = cv2.threshold(gray, 130, 255, cv2.THRESH_BINARY)
 # cv2.waitKey(0)
 
 cont_s, _ = cv2.findContours(threshold, cv2.RETR_LIST,
-                               cv2.CHAIN_APPROX_NONE)
+                             cv2.CHAIN_APPROX_NONE)
 
 # The second-largest contour would be the wing spot
 spot_ith_larg, spot_cont_ind = contour_index(cont_s, 1)
@@ -231,35 +216,16 @@ cv2.drawContours(im, cont_s, spot_cont_ind, (0, 255, 0), 6)
 line_ith_larg, line_cont_ind = contour_index(cont_s, 2)
 cv2.drawContours(im, cont_s, line_cont_ind, (0, 255, 0), 6)
 
+
 # Uncomment the following to see the contours drawn
 # cv2.imshow('Disp', im)
 # cv2.waitKey(0)
-
-# Estimate the contour area of spot
-# areaSpot = cv2.contourArea(spot_ith_larg)
-
-# # Estimatie Spot / wing ratio and save results
-# ratio = areaSpot / areaWing
-#
-# print('The ratio is: {}'.format(ratio))
-# # cv2.imwrite(str("~/St.George/2022Summer/WorkStudy/Project/Spot_Area") + path[-12:], im)
-# #
-# # with open("~/St.George/2022Summer/WorkStudy/Project/results.txt", 'a') as new_results:
-# #     new_results.write(str(path[-12:-8]) + ',' + str(path[-20:-13]) + ',' +
-# #                       str(path[-6:-4]) + ',' + str(path[-8]) + ',' + str(areaWing)
-# #                       + ',' + str(areaSpot) + ',' + str(ratio) + '\n')
-
-
-
-# # Sort the contours from top to bottom
-# (all_cnts, _) = contours.sort_contours(cont_s, 'bottom-to-top')
-# pixelsPerMetric = None
 
 
 def compute_size(im, c, pixel):
     """
     Compute the size of the object
-    :param im: Imput image
+    :param im: Input image
     :param c: Contour of the object
     :param pixel: Pixels per Metric used as reference
     :return: A tuple (height, width, pixels per metric)
@@ -272,7 +238,6 @@ def compute_size(im, c, pixel):
     cv2.drawContours(orig, [box.astype("int")], -1, (0, 255, 0), 2)
     for (x, y) in box:
         cv2.circle(orig, (int(x), int(y)), 5, (0, 0, 255), -1)
-
 
     # Unpack the ordered bounding box, then compute the midpoint
     # between the top-left and top-right coordinates, followed by
@@ -318,90 +283,23 @@ def compute_size(im, c, pixel):
                 0.65, (255, 255, 255), 2)
     cv2.imshow("Image", orig)
     cv2.waitKey(0)
-    cv2.destroyallwindows()
     return (length, width, pixel)
+
 
 line_length, line_width, line_pixel = compute_size(im, cont_s[line_cont_ind], None)
 spot_length, spot_width, spot_pixel = compute_size(im, cont_s[spot_cont_ind], line_pixel)
 
-print('Line size :\n' + 'Length: {:.1f} nm \n'.format(line_length) + 'Width: {:.1f} nm \n'.format(line_width) + '~~~~~~~~~~~~~~')
-print('Spot size :\n' + 'Length: {:.1f} nm \n'.format(spot_length) + 'Width: {:.1f} nm \n'.format(spot_width) + '~~~~~~~~~~~~~~')
+print('Line size :\n' + 'Length: {:.2f} nm \n'.format(line_length) + 'Width: {:.2f} nm \n'.format(
+    line_width) + '~~~~~~~~~~~~~~')
+print('Spot size :\n' + 'Length: {:.2f} nm \n'.format(spot_length) + 'Width: {:.2f} nm \n'.format(
+    spot_width) + '~~~~~~~~~~~~~~')
 
+# Writes the information to txt file
+try:
+    # Try open the file if it already exists
+    f = open("results_for_testing.txt", 'w')
+except FileNotFoundError:
+    # If not exists, create a new file
+    f = open("results_for_testing.txt", 'w')
 
-
-
-
-
-#
-#
-#
-#
-# # Loop over the contours individually
-# for c in cont_s:
-#     # If the contour is not sufficiently large or too large, ignore it
-#     if cv2.contourArea(c) < 7000 or cv2.contourArea(c) > 2000000:
-#         continue
-#     # Compute the rotated bounding box of the contour
-#     orig = im.copy()
-#     box = cv2.minAreaRect(c)
-#     box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
-#     box = np.array(box, dtype="int")
-#     # Order the points in the contour such that they appear
-#     # in top-left, top-right, bottom-right, and bottom-left
-#     # order, then draw the outline of the rotated bounding
-#     # box
-#     box = perspective.order_points(box)
-#     cv2.drawContours(orig, [box.astype("int")], -1, (0, 255, 0), 2)
-#     # loop over the original points and draw them
-#     for (x, y) in box:
-#         cv2.circle(orig, (int(x), int(y)), 5, (0, 0, 255), -1)
-#
-#     # Unpack the ordered bounding box, then compute the midpoint
-#     # between the top-left and top-right coordinates, followed by
-#     # the midpoint between bottom-left and bottom-right coordinates
-#     (tl, tr, br, bl) = box
-#     (tltrX, tltrY) = midpoint(tl, tr)
-#     (blbrX, blbrY) = midpoint(bl, br)
-#
-#     # Compute the midpoint between the top-left and bottom-left points,
-#     # followed by the midpoint between the top-right and bottom-right
-#     (tlblX, tlblY) = midpoint(tl, bl)
-#     (trbrX, trbrY) = midpoint(tr, br)
-#
-#     # Draw the midpoints on the image
-#     cv2.circle(orig, (int(tltrX), int(tltrY)), 5, (255, 0, 0), -1)
-#     cv2.circle(orig, (int(blbrX), int(blbrY)), 5, (255, 0, 0), -1)
-#     cv2.circle(orig, (int(tlblX), int(tlblY)), 5, (255, 0, 0), -1)
-#     cv2.circle(orig, (int(trbrX), int(trbrY)), 5, (255, 0, 0), -1)
-#     # draw lines between the midpoints
-#     cv2.line(orig, (int(tltrX), int(tltrY)), (int(blbrX), int(blbrY)),
-#              (255, 0, 255), 2)
-#     cv2.line(orig, (int(tlblX), int(tlblY)), (int(trbrX), int(trbrY)),
-#              (255, 0, 255), 2)
-#
-#     # Compute the Euclidean distance between the midpoints
-#     dA = dist.euclidean((tltrX, tltrY), (blbrX, blbrY))
-#     dB = dist.euclidean((tlblX, tlblY), (trbrX, trbrY))
-#     # If the pixels per metric has not been initialized, then
-#     # compute it as the ratio of pixels to supplied metric
-#     # (in this case, nm)
-#     if pixelsPerMetric is None:
-#         pixelsPerMetric = dB / 500
-#
-#     # compute the size of the object
-#     dimA = dA / pixelsPerMetric
-#     dimB = dB / pixelsPerMetric
-#     # draw the object sizes on the image
-#     cv2.putText(orig, "{:.1f} nm".format(dimA),
-#                 (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
-#                 0.65, (255, 255, 255), 2)
-#     cv2.putText(orig, "{:.1f} nm".format(dimB),
-#                 (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
-#                 0.65, (255, 255, 255), 2)
-#     # show the output image
-#     cv2.imshow("Image", orig)
-#     # print('Contour size is: {}'.format(cv2.contourArea(c)))
-#     # print('Coordinator is: {}'.format(c))
-#     print('Object size :\n' + 'Length: {:.1f} nm \n'.format(dimB) + 'Width: {:.1f} nm \n'.format(dimA) + '~~~~~~~~~~~~~~')
-#     cv2.waitKey(0)
-#
+f.write(str(name[:-4]) + ',' + '{:.2f}'.format(spot_length) + ',' + '{:.2f}'.format(spot_width) + '\n')
