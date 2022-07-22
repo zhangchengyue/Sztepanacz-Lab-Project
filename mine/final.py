@@ -216,7 +216,7 @@ cv2.drawContours(im, cont_s, spot_cont_ind, (0, 255, 0), 6)
 
 
 # The third-largest contour would be the 500nm line
-# TODO: Make sure that the background is clean, otherwise can't detect the complete line.
+# TODO: Make sure that the background is clean, otherwise can't detect the complete 500nm line.
 #  Successful example: 018A_R_22_SA.tif
 #  Failed example: 184A_R_22_SA.tif
 line_ith_larg, line_cont_ind = contour_index(cont_s, 2)
