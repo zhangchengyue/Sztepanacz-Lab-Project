@@ -1,5 +1,4 @@
 import os
-
 import cv2
 import numpy as np
 
@@ -31,7 +30,8 @@ def contour_index(contours, ith_bigger):
 # path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\So05D_16.jpg')
 
 # This is the path of the picture for IOS system
-path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/So05G_16.tif")
+path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/copy_So05G_16.png")
+
 
 # Coordinators for landmarks
 # upper_x = []
@@ -40,10 +40,10 @@ path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/So05G_16.tif
 # lower_x = []
 # lower_y = []
 
-upper_x = '2300'
+upper_x = '2200'
 upper_y = '400'
 
-lower_x = '2300'
+lower_x = '2200'
 lower_y = '800'
 # Read landmarks from file.
 # TODO: Try to use ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
@@ -118,11 +118,14 @@ dark = cv2.equalizeHist(gray)
 
 # Flip black and white colors in the image
 # ret, thresh = cv2.threshold(dark, 90, 255, cv2.THRESH_BINARY_INV)
-ret, thresh = cv2.threshold(dark, 90, 255, cv2.THRESH_BINARY_INV)
+
+ret, thresh = cv2.threshold(dark, 90, 500, cv2.THRESH_BINARY_INV)
+# cv2.imshow('thresh', thresh)
+
 
 # Uncomment the following to look at thresh
-# cv2.imshow('Threshold', thresh)
-# cv2.waitKey(0)
+cv2.imshow('Threshold', thresh)
+cv2.waitKey(0)
 
 
 # Find all sets of contours in the image
@@ -134,13 +137,12 @@ ith_largest, cont_index = contour_index(cont, 0)
 cv2.drawContours(im, cont, cont_index, (255, 255, 0), 6)
 
 # Uncomment the following to look at the largest contour of the image
-cv2.imshow('Largest contour', im)
-cv2.waitKey(0)
+# cv2.imshow('Largest contour', im)
+# cv2.waitKey(0)
 
 cv2.namedWindow('Disp', cv2.WINDOW_NORMAL)
 
-cv2.imshow('Disp', im)
-
+# cv2.imshow('Disp', im)
 areaWing = cv2.contourArea(ith_largest)
 
 # Then the spot contour is estimated
@@ -156,14 +158,15 @@ contours, _ = cv2.findContours(threshold, cv2.RETR_LIST,
 # It is estimated that the second-largest contour would be the wing spot
 spot_ith_larg, spot_cont_ind = contour_index(contours, 1)
 
-cv2.drawContours(im, contours, spot_cont_ind, (255, 255, 0), 6)
+cv2.drawContours(im, contours, spot_cont_ind, (0, 255, 0), 6)
 
 cv2.imshow('Disp', im)
+cv2.waitKey(0)
 
+# Estimate the contour area of spot
 areaSpot = cv2.contourArea(spot_ith_larg)
 
 # Estimatie Spot / wing ratio and save results
-
 ratio = areaSpot / areaWing
 
 print('The ratio is: {}'.format(ratio))
