@@ -1,5 +1,5 @@
 import os
-
+import platform
 import cv2
 import numpy as np
 
@@ -30,22 +30,25 @@ def contour_index(contours, ith_bigger):
     return (ith_largest_contour, cont_index)
 
 
-
-
 # We start by cutting out the part of the picture where the thorax is
 
 # This is the template of the folder path for windows system
-# path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\So05D_16.jpg')
+# path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\')
 
-# This is the template of the picture for IOS system
+# This is the template of the folder path for IOS system
 # path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/")
 
-# TODO: Only works for OS system. Need to fix this issue.
+# TODO: Try run this on Windows system as well
 
 def find_spot_area(path, folder, name):
+    plat = platform.platform(True, True)
+    if plat.startswith("macOS"):
+        image = path + folder + '/' + name
+    elif plat.startswith("Win"):
+        image = path + folder + str("\\" * 2) + name
+    print(image)
     s = "~~~ Processing image: {} ~~~".format(name)
     print(s)
-    image = path + '/' + folder + '/' + name
     im = cv2.imread(image)
     height, width, channels = im.shape
     mask = np.zeros((height, width), np.uint8)
@@ -53,13 +56,13 @@ def find_spot_area(path, folder, name):
     u_y = '400'
     l_x = '1000'
     l_y = height - 200
-    pts2 = np.array([[u_x, 0], [l_x, l_y], [width, l_y], [width, 0]])
-    _ = cv2.drawContours(mask, np.int32([pts2]), 0, 255, -1)
-    raw_wing2 = im.copy()
-    raw_wing2[mask > 0] = 255  # cut area will be white (255)
-    cv2.line(raw_wing2, (int(u_x), 0), (int(l_x), int(l_y)),
+    pts = np.array([[u_x, 0], [l_x, l_y], [width, l_y], [width, 0]])
+    _ = cv2.drawContours(mask, np.int32([pts]), 0, 255, -1)
+    raw_wing = im.copy()
+    raw_wing[mask > 0] = 255  # cut area will be white (255)
+    cv2.line(raw_wing, (int(u_x), 0), (int(l_x), int(l_y)),
              (255, 255, 255), thickness=8, lineType=cv2.LINE_AA)
-    blurred = cv2.pyrMeanShiftFiltering(raw_wing2, 31, 91)  # dilate & erode doesn't work well
+    blurred = cv2.pyrMeanShiftFiltering(raw_wing, 31, 91)  # dilate & erode doesn't work well
     gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
     retval, threshold = cv2.threshold(gray, 130, 255, cv2.THRESH_BINARY)
     cont_s, _ = cv2.findContours(threshold, cv2.RETR_LIST,
@@ -67,7 +70,7 @@ def find_spot_area(path, folder, name):
 
     spot_ith_larg, spot_cont_ind = contour_index(cont_s, 1)
     if spot_cont_ind >= 0:
-        cv2.drawContours(im, cont_s, spot_cont_ind, (0, 255, 0), 6)
+        cv2.drawContours(im, cont_s, spot_cont_ind, (0, 255, 0), 6)  # Green
         areaSpot = cv2.contourArea(spot_ith_larg)
         print("The spot contour has {} pixels.".format(areaSpot))
     else:
@@ -75,7 +78,7 @@ def find_spot_area(path, folder, name):
 
     line_ith_larg, line_cont_ind = contour_index(cont_s, 2)
     if line_cont_ind >= 0:
-        cv2.drawContours(im, cont_s, line_cont_ind, (0, 255, 0), 6)
+        cv2.drawContours(im, cont_s, line_cont_ind, (255, 255, 0), 6)  # Blue
         areaLine = cv2.contourArea(line_ith_larg)
         print("The scale bar contour has {} pixels.".format(areaLine))
     else:
@@ -90,7 +93,7 @@ def find_spot_area(path, folder, name):
         # Try open the file if it already exists
         f = open("for_testing.txt", 'a')
     else:
-        # If not exists, create a new file
+        # If not exists, create a new file and write the first line
         f = open("for_testing.txt", 'w')
         f.write("Folder,Image_Name,Spot_Pixel,ScaleBar_Pixel" + '\n')
 
@@ -100,25 +103,28 @@ def find_spot_area(path, folder, name):
     return
 
 
+#
 # # Example for single image processing
-# path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/")
-# dir = "pics"
-# name = "022A_R_22_SA.tif"
+# path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/samples/")
+# dir = "sample1"
+# name = "005G_R_22_GC.tif"
 # print("Processing image: {} \n".format(name))
 #
 # find_spot_area(path, dir, name)
 
 
-# # Processing images in multiple folders
 
+
+
+# Processing images in multiple folders
 # Path of the directory which contains subdirectories of images.
 path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/samples/")
 
-# Get a list of each image folder
+# Get a list of image folders
 dirlist = [item for item in os.listdir(path) if os.path.isdir(os.path.join(path, item))]
 
 for direct in dirlist:
-    directory = path + '/' + direct
+    directory = path + direct
     print("*** Folder: {} ***".format(direct))
     for filename in os.listdir(directory):
         if filename.endswith(".tif"):
