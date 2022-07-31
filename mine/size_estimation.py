@@ -30,7 +30,7 @@ def contour_index(contours, ith_bigger):
 # path = str('C:\\Users\\vllaurens\\Desktop\\Spot_images\\SOKOL16\\So05D_16.jpg')
 
 # This is the path of the picture for IOS system
-path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/copy_So05G_16.png")
+path = os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/pics/018A_R_22_SA.tif")
 
 
 # Coordinators for landmarks
@@ -45,16 +45,17 @@ upper_y = '400'
 
 lower_x = '2200'
 lower_y = '800'
+
 # Read landmarks from file.
 # TODO: Try to use ImageJ to detect landmarks for each picture, and then save the coordinates in a new file.
-# with open(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/landmarks_plasticity.txt"), 'r') as f:
-#     for line in f.readlines():
-#         l = line.strip().split(',')
-#         if l[0] == path[-12:-4]:
-#             upper_x = l[1]
-#             upper_y = l[2]
-#             lower_x = l[3]
-#             lower_y = l[4]
+with open(os.path.expanduser("~/St.George/2022Summer/WorkStudy/Project/landmarks_plasticity.txt"), 'r') as f:
+    for line in f.readlines():
+        l = line.strip().split(',')
+        if l[0] == path[-12:-4]:
+            upper_x = l[1]
+            upper_y = l[2]
+            lower_x = l[3]
+            lower_y = l[4]
 
 im = cv2.imread(path)
 
@@ -69,15 +70,15 @@ height, width, channels = im.shape
 mask = np.zeros((height, width), np.uint8)
 
 # Uncomment the following to look at the mask
-# cv2.imshow('Numpy.zero', mask)
-# cv2.waitKey(0)
+cv2.imshow('Numpy.zero', mask)
+cv2.waitKey(0)
 
 # Creates a shape with landmarks as boundary. The shape is represented as numpy array
-if path[-8] == 'D':
-    pts = np.array([[0, 0], [0, height], [lower_x, lower_y], [upper_x, upper_y]])
+# if path[-8] == 'D':
+#     pts = np.array([[0, 0], [0, height], [lower_x, lower_y], [upper_x, upper_y]])
 
-if path[-8] == 'G':
-    pts = np.array([[upper_x, upper_y], [lower_x, lower_y], [width, height], [width, 0]])
+# if path[-8] == 'G':
+pts = np.array([[upper_x, upper_y], [lower_x, lower_y], [width, height], [width, 0]])
 
 print('Upper landmark: (' + upper_x + ', ' + upper_y + ')')
 print('Lower landmark: (' + lower_x + ', ' + lower_y + ')')
@@ -99,8 +100,8 @@ cv2.line(raw_wing, (int(upper_x), int(upper_y)), (int(lower_x), int(lower_y)),
          (255, 0, 0), thickness=8, lineType=cv2.LINE_AA)
 
 # Uncomment the following to look at raw_wing
-# cv2.imshow('raw_wing', raw_wing)
-# cv2.waitKey(0)
+cv2.imshow('raw_wing', raw_wing)
+cv2.waitKey(0)
 
 # We detect the wing contour by setting up a colour threshold
 
@@ -112,8 +113,8 @@ gray = cv2.cvtColor(raw_wing, cv2.COLOR_BGR2GRAY)
 dark = cv2.equalizeHist(gray)
 
 # Uncomment the following to look at histogram equalized image
-# cv2.imshow('Histogram equalized image', dark)
-# cv2.waitKey(0)
+cv2.imshow('Histogram equalized image', dark)
+cv2.waitKey(0)
 
 
 # Flip black and white colors in the image
@@ -137,8 +138,8 @@ ith_largest, cont_index = contour_index(cont, 0)
 cv2.drawContours(im, cont, cont_index, (255, 255, 0), 6)
 
 # Uncomment the following to look at the largest contour of the image
-# cv2.imshow('Largest contour', im)
-# cv2.waitKey(0)
+cv2.imshow('Largest contour', im)
+cv2.waitKey(0)
 
 cv2.namedWindow('Disp', cv2.WINDOW_NORMAL)
 
