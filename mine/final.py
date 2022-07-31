@@ -82,8 +82,8 @@ def find_spot_area(path, folder, name):
         areaLine = -1
 
     # Uncomment the following to see contours
-    cv2.imshow(name[:-4], im)
-    cv2.waitKey(0)
+    # cv2.imshow(name[:-4], im)
+    # cv2.waitKey(0)
 
     # Writes the information to txt file
     if os.path.exists("for_testing.txt"):
